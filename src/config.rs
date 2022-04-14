@@ -14,6 +14,10 @@ pub struct FastFindConfig {
     /// Maximum entries to list
     #[clap(long)]
     pub max_entries: Option<u64>,
+
+    /// Sort entries by depth
+    #[clap(long)]
+    pub sort_by_depth: bool,
 }
 
 pub fn parse_args() -> FastFindConfig {
