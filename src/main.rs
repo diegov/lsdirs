@@ -13,6 +13,7 @@ type IgnoreResult = Result<ignore::DirEntry, ignore::Error>;
 
 fn is_dir(v: &DirEntry) -> bool {
     if let Some(typ) = v.file_type() {
+        // TODO: typ.is_symlink() && is_link_to_dir(&v)
         typ.is_dir()
     } else {
         false
@@ -42,11 +43,25 @@ where
 {
     let path = PathBuf::from_str(&conf.path)?;
 
+    // TODO: What do to about errors?
     let iter = WalkBuilder::new(path)
         .max_depth(conf.max_depth)
         .standard_filters(true)
         .filter_entry(is_dir)
-        .build();
+        .build()
+        .filter(|res| {
+            if let Ok(d) = res {
+                // TODO: use different closure instead of running
+                // this comparison for each entry
+                if let Some(pattern) = &conf.filter {
+                    d.path().to_string_lossy().contains(pattern)
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        });
 
     if conf.sort_by_depth {
         let mut dirs: Vec<_> = iter.collect();

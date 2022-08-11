@@ -18,6 +18,10 @@ pub struct FastFindConfig {
     /// Sort entries by depth
     #[clap(long)]
     pub sort_by_depth: bool,
+
+    /// Only show entries matching this regex
+    #[clap(long)]
+    pub filter: Option<String>,
 }
 
 pub fn parse_args() -> FastFindConfig {
