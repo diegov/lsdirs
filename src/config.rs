@@ -22,6 +22,10 @@ pub struct FastFindConfig {
     /// Only show entries matching this regex
     #[clap(long)]
     pub filter: Option<String>,
+
+    /// Show files as well as directories
+    #[arg(long)]
+    pub show_files: bool,
 }
 
 pub fn parse_args() -> FastFindConfig {
