@@ -20,6 +20,10 @@ fn is_dir(v: &DirEntry) -> bool {
     }
 }
 
+fn any(_: &DirEntry) -> bool {
+    true
+}
+
 fn main() -> LsDirsResult<()> {
     let conf = config::parse_args();
 
@@ -30,16 +34,32 @@ fn main() -> LsDirsResult<()> {
             count >= max_entries
         };
 
-        walk(&conf, stop_check)
+        walk(&conf, stop_check, conf.show_files)
     } else {
         let stop_check = || false;
-        walk(&conf, stop_check)
+        walk(&conf, stop_check, conf.show_files)
     }
 }
 
-fn walk<F>(conf: &config::FastFindConfig, stop_check: F) -> LsDirsResult<()>
+fn walk<STOP>(conf: &config::FastFindConfig, stop_check: STOP, show_files: bool) -> LsDirsResult<()>
 where
-    F: FnMut() -> bool,
+    STOP: FnMut() -> bool,
+{
+    if show_files {
+        walk_with_filter(conf, stop_check, any)
+    } else {
+        walk_with_filter(conf, stop_check, is_dir)
+    }
+}
+
+fn walk_with_filter<STOP, FILTER>(
+    conf: &config::FastFindConfig,
+    stop_check: STOP,
+    filter: FILTER,
+) -> LsDirsResult<()>
+where
+    STOP: FnMut() -> bool,
+    FILTER: Fn(&DirEntry) -> bool + Send + Sync + 'static,
 {
     let path = PathBuf::from_str(&conf.path)?;
 
@@ -47,7 +67,7 @@ where
     let iter = WalkBuilder::new(path)
         .max_depth(conf.max_depth)
         .standard_filters(true)
-        .filter_entry(is_dir)
+        .filter_entry(filter)
         .build()
         .filter(|res| {
             if let Ok(d) = res {
