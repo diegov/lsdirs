@@ -10,4 +10,4 @@ Lists all directories, recursively, using the handy [ignore crate](https://crate
 
 # License
 
-[GPLv3](LICENSE)
+[GPLv3](../LICENSE)
