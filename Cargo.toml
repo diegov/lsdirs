@@ -1,11 +1,8 @@
-[package]
-name = "lsdirs"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-ignore = "^0.4.0"
-clap = { version = "^4.0.0", features = ["derive"] }
+[workspace]
+members = [
+    "lsdirs",
+    "freqdirs"
+]
 
 [profile.release]
 codegen-units = 1
