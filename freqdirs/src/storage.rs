@@ -78,15 +78,19 @@ pub fn get_paths(
 ) -> StorageResult<Vec<String>> {
     let db = DbContext::new(db_dir)?;
 
-    // TODO: Use max(last_seen) across all paths instead of current time as a reference
-    // 1 repeat = 10 minutes for scoring
+    // 1 repeat = 30 seconds for scoring
+    // TODO: it doesn't make sense to use the absolute value of seen_count, if paths are reset only
+    // when inactive. All frequently used paths will increase to magnitudes at which last_seen will
+    // no longer be significant.
     let mut stmt = db.connection.prepare(
         r#"
+with params as (select max(last_seen) as most_recent from freq_path)
 select canonical_path from (
 select canonical_path,
   case when canonical_path like ? || '%' then 1.0 else 0.0 end as workdir_score,
-  sqrt(seen_count * 1.0) + sqrt((? - last_seen) / (10 * 60 * 1000)) as score
+  sqrt(seen_count * 1.0) - sqrt((params.most_recent - last_seen) / (30.0 * 1000)) as score
 from freq_path
+cross join params
 where ? - last_seen < ?
 and canonical_path like ? || '%'
 ) q
@@ -102,13 +106,12 @@ order by workdir_score desc, score desc
     }
 
     stmt.bind((2, now))?;
-    stmt.bind((3, now))?;
-    stmt.bind((4, FORGET_THRESHOLD))?;
+    stmt.bind((3, FORGET_THRESHOLD))?;
 
     if let Some(path) = root_path {
-        stmt.bind((5, path.to_str().unwrap()))?;
+        stmt.bind((4, path.to_str().unwrap()))?;
     } else {
-        stmt.bind((5, ""))?;
+        stmt.bind((4, ""))?;
     }
 
     let mut result = vec![];
@@ -127,7 +130,10 @@ pub fn update_path(db_dir: &Path, path: &Path) -> StorageResult<()> {
         r#"update freq_path 
 set
   last_seen = max(last_seen, ?),
-  seen_count = case when ? - last_seen > ? then 1 else seen_count + 1 end
+  seen_count = case
+                 when ? - last_seen > ? then 1
+                 else seen_count + 1.0 - (1.0 / (1.0 + (? - last_seen) / (30.0 * 60 * 1000)))
+               end
 where canonical_path = ?;
 "#,
     )?;
@@ -137,7 +143,8 @@ where canonical_path = ?;
     stmt.bind((1, now))?;
     stmt.bind((2, now))?;
     stmt.bind((3, FORGET_THRESHOLD))?;
-    stmt.bind((4, path.to_str().unwrap()))?;
+    stmt.bind((4, now))?;
+    stmt.bind((5, path.to_str().unwrap()))?;
 
     stmt.next()?;
 
@@ -153,7 +160,10 @@ values (?, ?, 1)
 on conflict (canonical_path) do update
 set
   last_seen = max(last_seen, excluded.last_seen),
-  seen_count = case when excluded.last_seen - last_seen > ? then 1 else seen_count + 1 end;'
+  seen_count = case
+                 when excluded.last_seen - last_seen > ? then 1
+                 else seen_count + 1.0 - (1.0 / (1.0 + (? - last_seen) / (30.0 * 60 * 1000)))
+               end;'
 "#,
     )?;
 
@@ -162,6 +172,7 @@ set
     stmt.bind((1, path.to_str().unwrap()))?;
     stmt.bind((2, now))?;
     stmt.bind((3, FORGET_THRESHOLD))?;
+    stmt.bind((4, now))?;
 
     stmt.next()?;
 
@@ -201,10 +212,3 @@ impl Drop for DbContext {
         self.db_file.unlock().unwrap();
     }
 }
-
-// pub fn query(sql: &str) -> StorageResult<()> {
-//     let db = DbContext::new()?;
-//     db.connection.execute(sql)?;
-//     drop(db);
-//     Ok(())
-// }
