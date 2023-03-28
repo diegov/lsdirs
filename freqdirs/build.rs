@@ -4,6 +4,12 @@ use std::path::PathBuf;
 
 fn main() {
     let src_dir = PathBuf::from("migrations");
+
+    print!(
+        "cargo:rerun-if-changed={}",
+        src_dir.as_os_str().to_str().unwrap()
+    );
+
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let project_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
 
