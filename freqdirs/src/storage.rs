@@ -179,6 +179,22 @@ set
     Ok(())
 }
 
+pub fn delete_path(db_dir: &Path, path: &Path) -> StorageResult<()> {
+    let db = DbContext::new(db_dir)?;
+
+    let mut stmt = db.connection.prepare(
+        r#"delete from freq_path
+where canonical_path = ?;
+"#,
+    )?;
+
+    stmt.bind((1, path.to_str().unwrap()))?;
+
+    stmt.next()?;
+
+    Ok(())
+}
+
 struct DbContext {
     connection: Connection,
     db_file: File,

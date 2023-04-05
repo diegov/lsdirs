@@ -19,6 +19,7 @@ fn main() -> Result<(), MainError> {
         config::Command::Query { path, working_dir } => query(conf.state_dir, path, working_dir)?,
         config::Command::Save { path } => save(conf.state_dir, &path, false)?,
         config::Command::Update { path } => save(conf.state_dir, &path, true)?,
+        config::Command::Delete { path } => delete(conf.state_dir, &path)?,
     }
 
     Ok(())
@@ -68,5 +69,11 @@ fn save(db_path: PathBuf, path: &str, update_only: bool) -> Result<(), MainError
     } else {
         storage::save_path(&db_path, &canonical)?;
     }
+    Ok(())
+}
+
+fn delete(db_path: PathBuf, path: &str) -> Result<(), MainError> {
+    let canonical = get_canonical_path(path)?;
+    storage::delete_path(&db_path, &canonical)?;
     Ok(())
 }
