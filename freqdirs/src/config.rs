@@ -30,6 +30,9 @@ pub enum Command {
 
     /// Increment count for a directory, but only if it has been explicitly saved previously
     Update { path: String },
+
+    /// Delete directory
+    Delete { path: String },
 }
 
 pub fn parse_args() -> FreqDirsConfig {
