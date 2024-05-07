@@ -20,6 +20,7 @@ fn main() -> Result<(), MainError> {
         config::Command::Save { path } => save(conf.state_dir, &path, false)?,
         config::Command::Update { path } => save(conf.state_dir, &path, true)?,
         config::Command::Delete { path } => delete(conf.state_dir, &path)?,
+        config::Command::List { working_dir } => list(conf.state_dir, working_dir)?,
     }
 
     Ok(())
@@ -30,8 +31,8 @@ fn query(
     path: Option<String>,
     working_dir: Option<String>,
 ) -> Result<(), MainError> {
-    let working_dir = transpose(working_dir.map(|p| get_canonical_path(&p)))?;
-    let path = transpose(path.map(|p| get_canonical_path(&p)))?;
+    let working_dir = transpose(working_dir.map(|p| get_canonical_path(&p, false)))?;
+    let path = transpose(path.map(|p| get_canonical_path(&p, false)))?;
 
     for path in storage::get_paths(&db_path, &path, &working_dir)? {
         let display_path = if let Some(root_path) = &working_dir {
@@ -57,13 +58,24 @@ fn make_relative(root_path: &PathBuf, path: String) -> String {
     }
 }
 
-fn get_canonical_path(path: &str) -> Result<PathBuf, MainError> {
-    let canonical = canonicalize(path)?;
-    Ok(canonical)
+fn get_canonical_path(path: &str, allow_non_existent: bool) -> Result<PathBuf, MainError> {
+    let result = canonicalize(path);
+
+    match result {
+        Ok(canonical) => Ok(canonical),
+        // TODO: Differentiate types of errors, only "does not exist" is allowed
+        Err(e) => {
+            if allow_non_existent {
+                Ok(PathBuf::from(path))
+            } else {
+                Err(MainError::from(e))
+            }
+        }
+    }
 }
 
 fn save(db_path: PathBuf, path: &str, update_only: bool) -> Result<(), MainError> {
-    let canonical = get_canonical_path(path)?;
+    let canonical = get_canonical_path(path, false)?;
     if update_only {
         storage::update_path(&db_path, &canonical)?;
     } else {
@@ -73,7 +85,11 @@ fn save(db_path: PathBuf, path: &str, update_only: bool) -> Result<(), MainError
 }
 
 fn delete(db_path: PathBuf, path: &str) -> Result<(), MainError> {
-    let canonical = get_canonical_path(path)?;
+    let canonical = get_canonical_path(path, true)?;
     storage::delete_path(&db_path, &canonical)?;
     Ok(())
+}
+
+fn list(db_path: PathBuf, working_dir: Option<String>) -> Result<(), MainError> {
+    query(db_path, None, working_dir)
 }
