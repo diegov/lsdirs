@@ -33,6 +33,12 @@ pub enum Command {
 
     /// Delete directory
     Delete { path: String },
+
+    /// List saved directories
+    List {
+        /// Working directory. If provided, child paths will be printed in relative format
+        working_dir: Option<String>,
+    },
 }
 
 pub fn parse_args() -> FreqDirsConfig {
