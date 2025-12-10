@@ -208,6 +208,7 @@ impl DbContext {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
 
         db_file.lock_exclusive()?;
